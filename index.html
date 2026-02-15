@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Kalkulator Trading PRO</title>
+<title>Kalkulator Trading</title>
 
 <style>
 body{
@@ -15,9 +15,9 @@ body{
     max-width:600px;
     margin:auto;
 }
-input, select{
+input{
     width:100%;
-    padding:8px;
+    padding:10px;
     margin-bottom:10px;
     background:#1a1a1a;
     border:1px solid #333;
@@ -25,7 +25,7 @@ input, select{
 }
 button{
     width:100%;
-    padding:10px;
+    padding:12px;
     background:#00aa88;
     border:none;
     color:white;
@@ -37,19 +37,35 @@ button{
     padding:15px;
     background:#1a1a1a;
 }
-h2{color:#00ffaa;}
 .green{color:#00ff88;}
 .red{color:#ff4444;}
+.suggestions{
+    background:#1a1a1a;
+    border:1px solid #333;
+    max-height:150px;
+    overflow-y:auto;
+    margin-top:-8px;
+    margin-bottom:10px;
+}
+.suggestions div{
+    padding:8px;
+    cursor:pointer;
+}
+.suggestions div:hover{
+    background:#333;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h2>Kalkulator Zleceń PRO</h2>
 
-<label>Instrument</label>
-<select id="instrument"></select>
+<h2>Kalkulator Zysku / Straty</h2>
+
+<label>Szukaj instrumentu</label>
+<input type="text" id="search" placeholder="Np. AAPL, US100, EURUSD">
+<div class="suggestions" id="suggestions"></div>
 
 <label>Typ</label>
 <select id="type">
@@ -57,20 +73,8 @@ h2{color:#00ffaa;}
 <option value="sell">SELL</option>
 </select>
 
-<label>Kapitał konta</label>
-<input type="number" id="capital" value="10000">
-
-<label>Ryzyko (%)</label>
-<input type="number" id="riskPercent" value="1">
-
-<label>Wielkość pozycji (loty)</label>
-<input type="number" id="lot" value="1" step="0.01">
-
-<label>Contract Size</label>
-<input type="number" id="contractSize" value="100000">
-
-<label>Pip Size</label>
-<input type="number" id="pipSize" value="0.0001" step="0.00001">
+<label>Kwota pozycji (PLN)</label>
+<input type="number" id="amount" value="1000">
 
 <label>Cena wejścia</label>
 <input type="number" id="entry" step="0.00001">
@@ -84,9 +88,6 @@ h2{color:#00ffaa;}
 <label>Dźwignia</label>
 <input type="number" id="leverage" value="30">
 
-<label>Prowizja (%)</label>
-<input type="number" id="commission" value="0">
-
 <button onclick="calculate()">OBLICZ</button>
 
 <div class="result" id="results"></div>
@@ -96,88 +97,89 @@ h2{color:#00ffaa;}
 <script>
 
 let instruments = [];
+let selectedInstrument = null;
 
-// 🔹 Ładowanie instrumentów z xtb.json
+// 🔹 Ładowanie JSON
 fetch("xtb.json")
 .then(res => res.json())
 .then(data => {
-
     instruments = data.instruments;
-
-    let select = document.getElementById("instrument");
-
-    instruments.forEach((inst, i) => {
-        let option = document.createElement("option");
-        option.value = i;
-        option.text = inst.symbol;
-        select.add(option);
-    });
-
 })
-.catch(error => {
-    console.error("Błąd ładowania xtb.json:", error);
+.catch(err => {
+    console.error("Błąd ładowania xtb.json:", err);
 });
 
-// 🔹 Funkcja obliczeń
+// 🔹 Wyszukiwarka
+document.getElementById("search").addEventListener("input", function(){
+
+    let value = this.value.toLowerCase();
+    let suggestionsBox = document.getElementById("suggestions");
+    suggestionsBox.innerHTML = "";
+
+    if(value.length < 1) return;
+
+    let filtered = instruments.filter(inst =>
+        inst.symbol.toLowerCase().includes(value)
+    ).slice(0,20);
+
+    filtered.forEach(inst => {
+        let div = document.createElement("div");
+        div.textContent = inst.symbol;
+        div.onclick = function(){
+            document.getElementById("search").value = inst.symbol;
+            selectedInstrument = inst;
+            suggestionsBox.innerHTML = "";
+        };
+        suggestionsBox.appendChild(div);
+    });
+
+});
+
+// 🔹 Kalkulator
 function calculate(){
 
-let inst = instruments[document.getElementById("instrument").value];
-
-if(!inst){
-    alert("Instrument nie został załadowany.");
+if(!selectedInstrument){
+    alert("Wybierz instrument z listy.");
     return;
 }
 
-let capital = parseFloat(document.getElementById("capital").value);
-let riskPercent = parseFloat(document.getElementById("riskPercent").value);
-let lot = parseFloat(document.getElementById("lot").value);
+let amount = parseFloat(document.getElementById("amount").value);
 let entry = parseFloat(document.getElementById("entry").value);
 let sl = parseFloat(document.getElementById("sl").value);
 let tp = parseFloat(document.getElementById("tp").value);
 let leverage = parseFloat(document.getElementById("leverage").value);
-let commission = parseFloat(document.getElementById("commission").value);
 let type = document.getElementById("type").value;
 
-let contractSize = parseFloat(document.getElementById("contractSize").value);
-let pipSize = parseFloat(document.getElementById("pipSize").value);
-
 if(!entry || !sl || !tp){
-    alert("Uzupełnij ceny wejścia, SL i TP.");
+    alert("Uzupełnij ceny.");
     return;
 }
+
+// ilość jednostek
+let quantity = amount / entry;
+
+// margin
+let margin = amount / leverage;
 
 // dystans
 let slDistance = type==="buy" ? (entry - sl) : (sl - entry);
 let tpDistance = type==="buy" ? (tp - entry) : (entry - tp);
 
-// wartość 1 pipsa
-let pipValue = contractSize * lot * pipSize;
-
-// ryzyko i zysk
-let riskMoney = (slDistance / pipSize) * pipValue;
-let rewardMoney = (tpDistance / pipSize) * pipValue;
+// zysk / strata
+let riskMoney = slDistance * quantity;
+let rewardMoney = tpDistance * quantity;
 
 let rr = rewardMoney / riskMoney;
 
-// wartość pozycji
-let positionValue = entry * contractSize * lot;
-let margin = positionValue / leverage;
-
-let commissionCost = positionValue * (commission/100);
-
-let riskAllowed = capital * (riskPercent/100);
-let autoLot = (riskAllowed / riskMoney) * lot;
-
 document.getElementById("results").innerHTML = `
-<b>Instrument:</b> ${inst.symbol} (${inst.waluta})<br>
-<b>Wartość pozycji:</b> ${positionValue.toFixed(2)}<br>
-<b>Margin:</b> ${margin.toFixed(2)}<br>
-<b>Ryzyko:</b> <span class="red">${riskMoney.toFixed(2)}</span><br>
-<b>Zysk:</b> <span class="green">${rewardMoney.toFixed(2)}</span><br>
-<b>R:R:</b> ${rr.toFixed(2)}<br>
-<b>Prowizja:</b> ${commissionCost.toFixed(2)}<br>
+<b>Instrument:</b> ${selectedInstrument.symbol}<br>
+<b>Kwota pozycji:</b> ${amount.toFixed(2)} PLN<br>
+<b>Ilość jednostek:</b> ${quantity.toFixed(4)}<br>
+<b>Margin:</b> ${margin.toFixed(2)} PLN<br>
 <hr>
-<b>Lot przy ryzyku ${riskPercent}%:</b> ${autoLot.toFixed(2)}
+<b>Ryzyko:</b> <span class="red">${riskMoney.toFixed(2)} PLN</span><br>
+<b>Zysk:</b> <span class="green">${rewardMoney.toFixed(2)} PLN</span><br>
+<b>R:R:</b> ${rr.toFixed(2)}
 `;
 
 }
