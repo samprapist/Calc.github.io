@@ -1,190 +1,194 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<title>Kalkulator Trading</title>
-
-<style>
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial;
-    padding:20px;
-}
-.container{
-    max-width:600px;
-    margin:auto;
-}
-input{
-    width:100%;
-    padding:10px;
-    margin-bottom:10px;
-    background:#1a1a1a;
-    border:1px solid #333;
-    color:white;
-}
-button{
-    width:100%;
-    padding:12px;
-    background:#00aa88;
-    border:none;
-    color:white;
-    font-weight:bold;
-    cursor:pointer;
-}
-.result{
-    margin-top:20px;
-    padding:15px;
-    background:#1a1a1a;
-}
-.green{color:#00ff88;}
-.red{color:#ff4444;}
-.suggestions{
-    background:#1a1a1a;
-    border:1px solid #333;
-    max-height:150px;
-    overflow-y:auto;
-    margin-top:-8px;
-    margin-bottom:10px;
-}
-.suggestions div{
-    padding:8px;
-    cursor:pointer;
-}
-.suggestions div:hover{
-    background:#333;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Trading Calculator</title>
+    <style>
+        body { background: #0b0e11; color: #eaecef; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+        .container { max-width: 550px; margin: auto; background: #181a20; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #f0b90b; margin-bottom: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; color: #848e9c; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 12px; background: #2b2f36; border: 1px solid #474d57; color: white; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+        input:focus { border-color: #f0b90b; outline: none; }
+        .flex-row { display: flex; gap: 10px; }
+        .flex-row > div { flex: 1; }
+        button { width: 100%; padding: 15px; background: #f0b90b; border: none; color: #181a20; font-weight: bold; cursor: pointer; border-radius: 8px; font-size: 16px; margin-top: 10px; }
+        button:hover { background: #d9a508; }
+        .result { margin-top: 20px; padding: 20px; background: #2b3139; border-radius: 12px; }
+        .res-line { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+        .green { color: #0ecb81; }
+        .red { color: #f6465d; }
+        .suggestions { background: #2b2f36; border: 1px solid #474d57; max-height: 200px; overflow-y: auto; position: absolute; width: calc(550px - 50px); z-index: 100; border-radius: 8px; }
+        .suggestions div { padding: 12px; cursor: pointer; border-bottom: 1px solid #3b3f46; }
+        .suggestions div:hover { background: #3b3f46; }
+        .fx-bar { display: flex; justify-content: space-around; font-size: 11px; color: #848e9c; margin-top: 15px; }
+    </style>
 </head>
-
 <body>
 
 <div class="container">
+    <h2>Smart Trade Calc</h2>
 
-<h2>Kalkulator Zysku / Straty</h2>
+    <div class="input-group">
+        <label>Instrument (Wyszukaj np. GOLD, DE40, AAPL.US, PKN.PL)</label>
+        <input type="text" id="search" placeholder="Zacznij pisać..." autocomplete="off">
+        <div class="suggestions" id="suggestions"></div>
+    </div>
 
-<label>Szukaj instrumentu</label>
-<input type="text" id="search" placeholder="Np. AAPL, US100, EURUSD">
-<div class="suggestions" id="suggestions"></div>
+    <div class="flex-row">
+        <div class="input-group">
+            <label>Typ</label>
+            <select id="type">
+                <option value="buy">LONG (Kupno)</option>
+                <option value="sell">SHORT (Sprzedaż)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Twój Depozyt (PLN)</label>
+            <input type="number" id="amount" value="1000">
+        </div>
+    </div>
 
-<label>Typ</label>
-<select id="type">
-<option value="buy">BUY</option>
-<option value="sell">SELL</option>
-</select>
+    <div class="input-group">
+        <label>Cena Wejścia</label>
+        <input type="number" id="entry" step="any" placeholder="0.0000">
+    </div>
 
-<label>Kwota pozycji (PLN)</label>
-<input type="number" id="amount" value="1000">
+    <div class="flex-row">
+        <div class="input-group">
+            <label>Stop Loss</label>
+            <input type="number" id="sl" step="any">
+        </div>
+        <div class="input-group">
+            <label>Take Profit</label>
+            <input type="number" id="tp" step="any">
+        </div>
+    </div>
 
-<label>Cena wejścia</label>
-<input type="number" id="entry" step="0.00001">
+    <div class="input-group">
+        <label>Dźwignia (np. 30 dla 1:30)</label>
+        <input type="number" id="leverage" value="20">
+    </div>
 
-<label>Stop Loss</label>
-<input type="number" id="sl" step="0.00001">
+    <button onclick="calculate()">OBLICZ POZYCJĘ</button>
 
-<label>Take Profit</label>
-<input type="number" id="tp" step="0.00001">
+    <div id="results"></div>
 
-<label>Dźwignia</label>
-<input type="number" id="leverage" value="30">
-
-<button onclick="calculate()">OBLICZ</button>
-
-<div class="result" id="results"></div>
-
+    <div class="fx-bar">
+        <span id="usdpln">USDPLN: ...</span>
+        <span id="eurpln">EURPLN: ...</span>
+    </div>
 </div>
 
 <script>
-
 let instruments = [];
 let selectedInstrument = null;
+let rates = { USD: 4.0, EUR: 4.30, PLN: 1.0 };
 
-// 🔹 Ładowanie JSON
+// 1. Pobieranie kursów walut
+async function fetchRates() {
+    try {
+        const [usdRes, eurRes] = await Promise.all([
+            fetch("https://api.nbp.pl/api/exchangerates/rates/a/usd/?format=json").then(r => r.json()),
+            fetch("https://api.nbp.pl/api/exchangerates/rates/a/eur/?format=json").then(r => r.json())
+        ]);
+        rates.USD = usdRes.rates[0].mid;
+        rates.EUR = eurRes.rates[0].mid;
+        document.getElementById("usdpln").textContent = `USDPLN: ${rates.USD.toFixed(4)}`;
+        document.getElementById("eurpln").textContent = `EURPLN: ${rates.EUR.toFixed(4)}`;
+    } catch (e) {
+        console.error("Błąd kursów walut");
+    }
+}
+fetchRates();
+
+// 2. Ładowanie bazy instrumentów
 fetch("xtb.json")
-.then(res => res.json())
-.then(data => {
-    instruments = data.instruments;
-})
-.catch(err => {
-    console.error("Błąd ładowania xtb.json:", err);
-});
+    .then(res => res.json())
+    .then(data => { instruments = data.instruments; })
+    .catch(() => console.log("Upewnij się, że plik xtb.json istnieje!"));
 
-// 🔹 Wyszukiwarka
-document.getElementById("search").addEventListener("input", function(){
+// 3. Obsługa wyszukiwarki
+document.getElementById("search").addEventListener("input", function() {
+    let val = this.value.toUpperCase();
+    let box = document.getElementById("suggestions");
+    box.innerHTML = "";
+    if (val.length < 1) return;
 
-    let value = this.value.toLowerCase();
-    let suggestionsBox = document.getElementById("suggestions");
-    suggestionsBox.innerHTML = "";
-
-    if(value.length < 1) return;
-
-    let filtered = instruments.filter(inst =>
-        inst.symbol.toLowerCase().includes(value)
-    ).slice(0,20);
-
-    filtered.forEach(inst => {
-        let div = document.createElement("div");
-        div.textContent = inst.symbol;
-        div.onclick = function(){
-            document.getElementById("search").value = inst.symbol;
-            selectedInstrument = inst;
-            suggestionsBox.innerHTML = "";
+    let matches = instruments.filter(i => i.symbol.includes(val)).slice(0, 8);
+    matches.forEach(m => {
+        let d = document.createElement("div");
+        d.textContent = m.symbol;
+        d.onclick = () => {
+            selectedInstrument = m;
+            document.getElementById("search").value = m.symbol;
+            box.innerHTML = "";
+            // Przykładowa cena, jeśli masz ją w JSON
+            if(m.price) document.getElementById("entry").value = m.price; 
         };
-        suggestionsBox.appendChild(div);
+        box.appendChild(d);
     });
-
 });
 
-// 🔹 Kalkulator
-function calculate(){
+// 4. Logika obliczeń
+function calculate() {
+    if (!selectedInstrument) { alert("Wybierz instrument!"); return; }
 
-if(!selectedInstrument){
-    alert("Wybierz instrument z listy.");
-    return;
+    const amount = parseFloat(document.getElementById("amount").value);
+    const entry = parseFloat(document.getElementById("entry").value);
+    const sl = parseFloat(document.getElementById("sl").value);
+    const tp = parseFloat(document.getElementById("tp").value);
+    const leverage = parseFloat(document.getElementById("leverage").value);
+    const type = document.getElementById("type").value;
+
+    if (!entry || !sl || !tp) { alert("Uzupełnij ceny!"); return; }
+
+    // DETEKCJA WALUTY INSTRUMENTU
+    let currency = "USD"; // domyślnie USA/Surowce
+    const sym = selectedInstrument.symbol;
+    
+    if (sym.endsWith(".PL") || sym.includes("W20")) currency = "PLN";
+    else if (sym.endsWith(".DE") || sym.includes("EU") || sym.includes("DE40")) currency = "EUR";
+    
+    const currentCrossRate = rates[currency];
+
+    // OBLICZENIA
+    // 1. Wartość pozycji w PLN (Depozyt * Dźwignia)
+    const posValuePLN = amount * leverage;
+    
+    // 2. Wartość pozycji w walucie instrumentu
+    const posValueNominal = posValuePLN / currentCrossRate;
+    
+    // 3. Ilość jednostek (np. ile uncji złota lub ile akcji Apple)
+    const quantity = posValueNominal / entry;
+
+    // 4. Zysk i Strata
+    const diffSL = type === "buy" ? (entry - sl) : (sl - entry);
+    const diffTP = type === "buy" ? (tp - entry) : (entry - tp);
+
+    const riskInCurrency = diffSL * quantity;
+    const rewardInCurrency = diffTP * quantity;
+
+    // 5. Powrót do PLN
+    const riskPLN = riskInCurrency * currentCrossRate;
+    const rewardPLN = rewardInCurrency * currentCrossRate;
+
+    const rr = Math.abs(rewardPLN / riskPLN);
+
+    document.getElementById("results").innerHTML = `
+        <div class="result">
+            <div class="res-line"><span>Waluta kwotowania:</span> <b>${currency} (kurs: ${currentCrossRate.toFixed(4)})</b></div>
+            <div class="res-line"><span>Wartość kontraktu:</span> <b>${posValuePLN.toFixed(2)} PLN</b></div>
+            <div class="res-line"><span>Wielkość (Ilość):</span> <b>${quantity.toFixed(4)} jednostek</b></div>
+            <hr style="border:0; border-top:1px solid #3b3f46; margin: 15px 0;">
+            <div class="res-line"><span>Ryzyko (Stop Loss):</span> <span class="red">-${riskPLN.toFixed(2)} PLN</span></div>
+            <div class="res-line"><span>Zysk (Take Profit):</span> <span class="green">+${rewardPLN.toFixed(2)} PLN</span></div>
+            <div class="res-line"><span>Stosunek R:R:</span> <b>1 : ${rr.toFixed(2)}</b></div>
+        </div>
+    `;
 }
-
-let amount = parseFloat(document.getElementById("amount").value);
-let entry = parseFloat(document.getElementById("entry").value);
-let sl = parseFloat(document.getElementById("sl").value);
-let tp = parseFloat(document.getElementById("tp").value);
-let leverage = parseFloat(document.getElementById("leverage").value);
-let type = document.getElementById("type").value;
-
-if(!entry || !sl || !tp){
-    alert("Uzupełnij ceny.");
-    return;
-}
-
-// ilość jednostek
-let quantity = amount / entry;
-
-// margin
-let margin = amount / leverage;
-
-// dystans
-let slDistance = type==="buy" ? (entry - sl) : (sl - entry);
-let tpDistance = type==="buy" ? (tp - entry) : (entry - tp);
-
-// zysk / strata
-let riskMoney = slDistance * quantity;
-let rewardMoney = tpDistance * quantity;
-
-let rr = rewardMoney / riskMoney;
-
-document.getElementById("results").innerHTML = `
-<b>Instrument:</b> ${selectedInstrument.symbol}<br>
-<b>Kwota pozycji:</b> ${amount.toFixed(2)} PLN<br>
-<b>Ilość jednostek:</b> ${quantity.toFixed(4)}<br>
-<b>Margin:</b> ${margin.toFixed(2)} PLN<br>
-<hr>
-<b>Ryzyko:</b> <span class="red">${riskMoney.toFixed(2)} PLN</span><br>
-<b>Zysk:</b> <span class="green">${rewardMoney.toFixed(2)} PLN</span><br>
-<b>R:R:</b> ${rr.toFixed(2)}
-`;
-
-}
-
 </script>
-
 </body>
 </html>
