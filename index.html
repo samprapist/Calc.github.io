@@ -39,4 +39,150 @@ button{
 }
 h2{color:#00ffaa;}
 .green{color:#00ff88;}
-.red{color:#ff444
+.red{color:#ff4444;}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>Kalkulator Zleceń PRO</h2>
+
+<label>Instrument</label>
+<select id="instrument"></select>
+
+<label>Typ</label>
+<select id="type">
+<option value="buy">BUY</option>
+<option value="sell">SELL</option>
+</select>
+
+<label>Kapitał konta</label>
+<input type="number" id="capital" value="10000">
+
+<label>Ryzyko (%)</label>
+<input type="number" id="riskPercent" value="1">
+
+<label>Wielkość pozycji (loty)</label>
+<input type="number" id="lot" value="1" step="0.01">
+
+<label>Contract Size</label>
+<input type="number" id="contractSize" value="100000">
+
+<label>Pip Size</label>
+<input type="number" id="pipSize" value="0.0001" step="0.00001">
+
+<label>Cena wejścia</label>
+<input type="number" id="entry" step="0.00001">
+
+<label>Stop Loss</label>
+<input type="number" id="sl" step="0.00001">
+
+<label>Take Profit</label>
+<input type="number" id="tp" step="0.00001">
+
+<label>Dźwignia</label>
+<input type="number" id="leverage" value="30">
+
+<label>Prowizja (%)</label>
+<input type="number" id="commission" value="0">
+
+<button onclick="calculate()">OBLICZ</button>
+
+<div class="result" id="results"></div>
+
+</div>
+
+<script>
+
+let instruments = [];
+
+// 🔹 Ładowanie instrumentów z xtb.json
+fetch("xtb.json")
+.then(res => res.json())
+.then(data => {
+
+    instruments = data.instruments;
+
+    let select = document.getElementById("instrument");
+
+    instruments.forEach((inst, i) => {
+        let option = document.createElement("option");
+        option.value = i;
+        option.text = inst.symbol;
+        select.add(option);
+    });
+
+})
+.catch(error => {
+    console.error("Błąd ładowania xtb.json:", error);
+});
+
+// 🔹 Funkcja obliczeń
+function calculate(){
+
+let inst = instruments[document.getElementById("instrument").value];
+
+if(!inst){
+    alert("Instrument nie został załadowany.");
+    return;
+}
+
+let capital = parseFloat(document.getElementById("capital").value);
+let riskPercent = parseFloat(document.getElementById("riskPercent").value);
+let lot = parseFloat(document.getElementById("lot").value);
+let entry = parseFloat(document.getElementById("entry").value);
+let sl = parseFloat(document.getElementById("sl").value);
+let tp = parseFloat(document.getElementById("tp").value);
+let leverage = parseFloat(document.getElementById("leverage").value);
+let commission = parseFloat(document.getElementById("commission").value);
+let type = document.getElementById("type").value;
+
+let contractSize = parseFloat(document.getElementById("contractSize").value);
+let pipSize = parseFloat(document.getElementById("pipSize").value);
+
+if(!entry || !sl || !tp){
+    alert("Uzupełnij ceny wejścia, SL i TP.");
+    return;
+}
+
+// dystans
+let slDistance = type==="buy" ? (entry - sl) : (sl - entry);
+let tpDistance = type==="buy" ? (tp - entry) : (entry - tp);
+
+// wartość 1 pipsa
+let pipValue = contractSize * lot * pipSize;
+
+// ryzyko i zysk
+let riskMoney = (slDistance / pipSize) * pipValue;
+let rewardMoney = (tpDistance / pipSize) * pipValue;
+
+let rr = rewardMoney / riskMoney;
+
+// wartość pozycji
+let positionValue = entry * contractSize * lot;
+let margin = positionValue / leverage;
+
+let commissionCost = positionValue * (commission/100);
+
+let riskAllowed = capital * (riskPercent/100);
+let autoLot = (riskAllowed / riskMoney) * lot;
+
+document.getElementById("results").innerHTML = `
+<b>Instrument:</b> ${inst.symbol} (${inst.waluta})<br>
+<b>Wartość pozycji:</b> ${positionValue.toFixed(2)}<br>
+<b>Margin:</b> ${margin.toFixed(2)}<br>
+<b>Ryzyko:</b> <span class="red">${riskMoney.toFixed(2)}</span><br>
+<b>Zysk:</b> <span class="green">${rewardMoney.toFixed(2)}</span><br>
+<b>R:R:</b> ${rr.toFixed(2)}<br>
+<b>Prowizja:</b> ${commissionCost.toFixed(2)}<br>
+<hr>
+<b>Lot przy ryzyku ${riskPercent}%:</b> ${autoLot.toFixed(2)}
+`;
+
+}
+
+</script>
+
+</body>
+</html>
